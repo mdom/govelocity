@@ -17,6 +17,17 @@ type file struct {
 
 var allFiles = make(map[string]*file)
 var selectedFiles = allFiles
+var editor = getEditor()
+
+func getEditor() string {
+    if e := os.Getenv("VISUAL"); e != "" {
+        return e
+    }
+    if e := os.Getenv("EDITOR"); e != "" {
+        return e
+    }
+    return "vi"
+}
 
 func main() {
     tview.Styles.InverseTextColor = tcell.ColorWhite
@@ -118,7 +129,7 @@ func main() {
                 allFiles[path] = &file{path: path, content: ""}
             }
 
-            cmd := exec.Command("vi", path)
+            cmd := exec.Command(editor, path)
             cmd.Stdout = os.Stdout
             cmd.Stdin = os.Stdin
             cmd.Stderr = os.Stderr
