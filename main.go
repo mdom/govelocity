@@ -7,17 +7,44 @@ import (
     "os"
     "os/exec"
     "path/filepath"
+    "sort"
     "strings"
+    "time"
 )
 
 type file struct {
     path    string
     content string
+    modTime time.Time
 }
 
-var allFiles = make(map[string]*file)
-var selectedFiles = allFiles
+type byModTime []*file
+
+func (a byModTime) Len() int           { return len(a) }
+func (a byModTime) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a byModTime) Less(i, j int) bool { return a[i].modTime.Unix() > a[j].modTime.Unix() }
+
+var allFiles = []*file{}
+var selectedFiles []*file
 var editor = getEditor()
+
+func init() {
+    tview.Borders.HorizontalFocus = tview.BoxDrawingsLightHorizontal
+    tview.Borders.VerticalFocus = tview.BoxDrawingsLightVertical
+    tview.Borders.TopLeftFocus = tview.BoxDrawingsLightDownAndRight
+    tview.Borders.TopRightFocus = tview.BoxDrawingsLightDownAndLeft
+    tview.Borders.BottomLeftFocus = tview.BoxDrawingsLightUpAndRight
+    tview.Borders.BottomRightFocus = tview.BoxDrawingsLightUpAndLeft
+}
+
+func updateList(list *tview.List, files []*file) *tview.List {
+    sort.Sort(byModTime(files))
+    for _, file := range files {
+        list.AddItem(file.path, "", 0, nil)
+    }
+    list.SetCurrentItem(0)
+    return list
+}
 
 func getEditor() string {
     if e := os.Getenv("VISUAL"); e != "" {
@@ -46,7 +73,12 @@ func main() {
         if err != nil {
             return nil
         }
-        allFiles[path] = &file{path: path, content: string(content)}
+        allFiles = append(allFiles, &file{
+            path:    path,
+            content: string(content),
+            modTime: info.ModTime(),
+        })
+        selectedFiles = allFiles
         return nil
     })
 
@@ -66,41 +98,34 @@ func main() {
     preview := tview.NewTextView()
     preview.SetBorder(true)
 
-    input.SetChangedFunc(func(text string) {
-        searchTerms := strings.Fields(text)
-        selectedFiles = make(map[string]*file)
-    FILES:
-        for _, file := range allFiles {
-            // search for search terms in content and path
-            content := file.content + " " + file.path
-            for _, term := range searchTerms {
-                if !strings.Contains(content, term) {
-                    continue FILES
-                }
-            }
-            selectedFiles[file.path] = file
+    list.SetChangedFunc(func(index int, _ string, _ string, _ rune) {
+        if len(selectedFiles) == 0 {
+            preview.SetText("")
+            return
         }
-        list.Clear()
-        for _, file := range selectedFiles {
-            list.AddItem(file.path, "", 0, nil)
-            list.SetCurrentItem(0)
-        }
-    })
-
-    list.SetChangedFunc(func(index int, mainText string, secondaryText string, shortcut rune) {
-        preview.SetText(allFiles[mainText].content)
+        preview.SetText(selectedFiles[index].content)
         preview.ScrollToBeginning()
     })
 
-    for _, file := range allFiles {
-        list.AddItem(file.path, "", 0, nil)
-    }
+    updateList(list, selectedFiles)
 
-    list.SetCurrentItem(0)
-
-    box.AddItem(input, 3, 1, true).
-        AddItem(list, 0, 1, false).
-        AddItem(preview, 0, 1, false)
+    input.SetChangedFunc(func(text string) {
+        searchTerms := strings.Fields(text)
+        selectedFiles = []*file{}
+    FILES:
+        for _, file := range allFiles {
+            // search for search terms in content AND path
+            content := strings.ToLower(file.content + " " + file.path)
+            for _, term := range searchTerms {
+                if !strings.Contains(content, strings.ToLower(term)) {
+                    continue FILES
+                }
+            }
+            selectedFiles = append(selectedFiles, file)
+        }
+        list.Clear()
+        updateList(list, selectedFiles)
+    })
 
     input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
         if event.Key() == tcell.KeyDown {
@@ -113,23 +138,36 @@ func main() {
             }
             list.SetCurrentItem(current - 1)
             return nil
+        } else if event.Key() == tcell.KeyHome {
+            preview.ScrollToBeginning()
+        } else if event.Key() == tcell.KeyEnd {
+            preview.ScrollToEnd()
+        } else if event.Key() == tcell.KeyCtrlV {
+            _, _, _, height := preview.GetInnerRect()
+            row, _ := preview.GetScrollOffset()
+            preview.ScrollTo(row+height, 0)
+        } else if event.Key() == tcell.KeyCtrlB {
+            _, _, _, height := preview.GetInnerRect()
+            row, _ := preview.GetScrollOffset()
+            preview.ScrollTo(row-height, 0)
         } else if event.Key() == tcell.KeyEnter {
 
-            var path string
+            var currentFile *file
 
             if list.GetItemCount() > 0 {
-                path, _ = list.GetItemText(list.GetCurrentItem())
+                currentFile = selectedFiles[list.GetCurrentItem()]
             } else {
                 text := input.GetText()
                 text = strings.TrimSpace(text)
                 if text == "" {
                     return nil
                 }
-                path = text + ".txt"
-                allFiles[path] = &file{path: path, content: ""}
+                path := text + ".txt"
+                currentFile = &file{path: path, content: ""}
+                allFiles = append(allFiles, currentFile)
             }
 
-            cmd := exec.Command(editor, path)
+            cmd := exec.Command(editor, currentFile.path)
             cmd.Stdout = os.Stdout
             cmd.Stdin = os.Stdin
             cmd.Stderr = os.Stderr
@@ -137,15 +175,20 @@ func main() {
             app.Suspend(func() {
                 cmd.Run()
             })
-            content, err := ioutil.ReadFile(path)
+            content, err := ioutil.ReadFile(currentFile.path)
             if err != nil {
                 panic(err)
             }
-            allFiles[path].content = string(content)
+            currentFile.content = string(content)
+            preview.SetText(currentFile.content)
             return nil
         }
         return event
     })
+
+    box.AddItem(input, 3, 1, true).
+        AddItem(list, 0, 1, false).
+        AddItem(preview, 0, 1, false)
 
     if err := app.SetRoot(box, true).Run(); err != nil {
         panic(err)
