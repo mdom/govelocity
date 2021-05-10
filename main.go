@@ -141,7 +141,7 @@ func (v *velocity) run() {
     box := tview.NewFlex().SetDirection(tview.FlexRow)
     box.AddItem(v.input, 3, 1, true).
         AddItem(v.list, 0, 1, false).
-        AddItem(v.preview, 0, 1, false)
+        AddItem(v.preview, 0, 2, false)
 
     if err := app.SetRoot(box, true).Run(); err != nil {
         panic(err)
