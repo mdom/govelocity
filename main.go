@@ -12,6 +12,15 @@ import (
     "time"
 )
 
+func init() {
+    tview.Borders.HorizontalFocus = tview.BoxDrawingsLightHorizontal
+    tview.Borders.VerticalFocus = tview.BoxDrawingsLightVertical
+    tview.Borders.TopLeftFocus = tview.BoxDrawingsLightDownAndRight
+    tview.Borders.TopRightFocus = tview.BoxDrawingsLightDownAndLeft
+    tview.Borders.BottomLeftFocus = tview.BoxDrawingsLightUpAndRight
+    tview.Borders.BottomRightFocus = tview.BoxDrawingsLightUpAndLeft
+}
+
 type file struct {
     path    string
     content string
@@ -24,8 +33,6 @@ func (a byModTime) Len() int           { return len(a) }
 func (a byModTime) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a byModTime) Less(i, j int) bool { return a[i].modTime.Unix() > a[j].modTime.Unix() }
 
-var allFiles = []*file{}
-var selectedFiles []*file
 var editor = getEditor()
 
 func create(p string) {
@@ -35,59 +42,49 @@ func create(p string) {
     os.Create(p)
 }
 
-func init() {
-    tview.Borders.HorizontalFocus = tview.BoxDrawingsLightHorizontal
-    tview.Borders.VerticalFocus = tview.BoxDrawingsLightVertical
-    tview.Borders.TopLeftFocus = tview.BoxDrawingsLightDownAndRight
-    tview.Borders.TopRightFocus = tview.BoxDrawingsLightDownAndLeft
-    tview.Borders.BottomLeftFocus = tview.BoxDrawingsLightUpAndRight
-    tview.Borders.BottomRightFocus = tview.BoxDrawingsLightUpAndLeft
-}
-
 func (v *velocity) updateList() {
+    index := v.list.GetCurrentItem()
     v.list.Clear()
     sort.Sort(byModTime(v.selectedFiles))
     for _, file := range v.selectedFiles {
-        v.list.AddItem(file.path, "", 0, nil)
+        v.list.AddItem(strings.TrimSuffix(file.path, ".txt"), "", 0, nil)
     }
-    // TODO Set to getCurrentItem or 0
-    v.list.SetCurrentItem(0)
+    v.list.SetCurrentItem(index)
 }
 
-func (v *velocity) editNote() *tcell.EventKey {
+func (v *velocity) editNote() {
 
-            var currentFile *file
+    var currentFile *file
 
-            if v.list.GetItemCount() > 0 {
-                currentFile = v.selectedFiles[v.list.GetCurrentItem()]
-            } else {
-                text := v.input.GetText()
-                text = strings.TrimSpace(text)
-                if text == "" {
-                    return nil
-                }
-                path := text + ".txt"
-                currentFile = &file{path: path, content: ""}
-                v.allFiles = append(v.allFiles, currentFile)
-                v.selectedFiles = append(v.selectedFiles, currentFile)
-                create(path)
-            }
+    if v.list.GetItemCount() > 0 {
+        currentFile = v.selectedFiles[v.list.GetCurrentItem()]
+    } else {
+        text := v.input.GetText()
+        text = strings.TrimSpace(text)
+        if text == "" {
+            return
+        }
+        path := text + ".txt"
+        currentFile = &file{path: path, content: ""}
+        v.allFiles = append(v.allFiles, currentFile)
+        v.selectedFiles = append(v.selectedFiles, currentFile)
+        create(path)
+    }
 
-            cmd := exec.Command(editor, currentFile.path)
-            cmd.Stdout = os.Stdout
-            cmd.Stdin = os.Stdin
-            cmd.Stderr = os.Stderr
+    cmd := exec.Command(editor, currentFile.path)
+    cmd.Stdout = os.Stdout
+    cmd.Stdin = os.Stdin
+    cmd.Stderr = os.Stderr
 
-            v.app.Suspend(func() {
-                cmd.Run()
-            })
-            content, err := ioutil.ReadFile(currentFile.path)
-            if err != nil {
-                panic(err)
-            }
-            currentFile.content = string(content)
-            v.updateList()
-            return nil
+    v.app.Suspend(func() {
+        cmd.Run()
+    })
+    content, err := ioutil.ReadFile(currentFile.path)
+    if err != nil {
+        panic(err)
+    }
+    currentFile.content = string(content)
+    v.updateList()
 }
 
 func getEditor() string {
@@ -109,23 +106,20 @@ type velocity struct {
     app           *tview.Application
 }
 
-func (v *velocity) scrollUp() *tcell.EventKey {
+func (v *velocity) scrollUp() {
     _, _, _, height := v.preview.GetInnerRect()
     row, _ := v.preview.GetScrollOffset()
     v.preview.ScrollTo(row-height, 0)
-    return nil
 }
 
-func (v *velocity) scrollDown() *tcell.EventKey {
+func (v *velocity) scrollDown() {
     _, _, _, height := v.preview.GetInnerRect()
     row, _ := v.preview.GetScrollOffset()
     v.preview.ScrollTo(row+height, 0)
-    return nil
 }
 
 func (v *velocity) run() {
     app := tview.NewApplication()
-
     v.app = app
 
     box := tview.NewFlex().SetDirection(tview.FlexRow)
@@ -138,35 +132,35 @@ func (v *velocity) run() {
     }
 }
 
-func (v *velocity) listChanged (index int, _ string, _ string, _ rune) {
-        if len(v.selectedFiles) == 0 {
-            v.preview.SetText("")
-            return
-        }
-        if index > len(v.selectedFiles)-1 {
-            index = 0
-        }
-        v.preview.SetText(v.selectedFiles[index].content)
-        v.preview.ScrollToBeginning()
+func (v *velocity) listChanged(index int, _ string, _ string, _ rune) {
+    if len(v.selectedFiles) == 0 {
+        v.preview.SetText("")
         return
+    }
+    if index > len(v.selectedFiles)-1 {
+        index = 0
+    }
+    v.preview.SetText(v.selectedFiles[index].content)
+    v.preview.ScrollToBeginning()
+    return
 }
 
-func (v *velocity) filterList (text string) {
-        searchTerms := strings.Fields(text)
-        v.selectedFiles = []*file{}
-    FILES:
-        for _, file := range v.allFiles {
-            // search for search terms in content AND path
-            content := strings.ToLower(file.content + " " + file.path)
-            for _, term := range searchTerms {
-                if !strings.Contains(content, strings.ToLower(term)) {
-                    continue FILES
-                }
+func (v *velocity) filterList(text string) {
+    searchTerms := strings.Fields(text)
+    v.selectedFiles = []*file{}
+FILES:
+    for _, file := range v.allFiles {
+        // search for search terms in content AND path
+        content := strings.ToLower(file.content + " " + file.path)
+        for _, term := range searchTerms {
+            if !strings.Contains(content, strings.ToLower(term)) {
+                continue FILES
             }
-            v.selectedFiles = append(selectedFiles, file)
         }
-        v.updateList()
+        v.selectedFiles = append(v.selectedFiles, file)
     }
+    v.updateList()
+}
 
 func getAllFiles(root string) []*file {
     var files = []*file{}
@@ -188,6 +182,9 @@ func getAllFiles(root string) []*file {
         })
         return nil
     })
+    if err != nil {
+        panic(err)
+    }
     return files
 }
 
@@ -195,9 +192,22 @@ func main() {
 
     v := velocity{}
 
-    v.allFiles = getAllFiles(".")
+    dir := os.ExpandEnv("${HOME}/notes")
 
-    v.selectedFiles = allFiles
+    if _, err := os.Stat(dir); os.IsNotExist(err) {
+        err = os.Mkdir(dir, 0770)
+        if err != nil {
+            panic(err)
+        }
+    }
+
+    err := os.Chdir(dir)
+    if err != nil {
+        panic(err)
+    }
+
+    v.allFiles = getAllFiles(".")
+    v.selectedFiles = v.allFiles
 
     v.input = tview.NewInputField()
     v.input.SetBorder(true)
@@ -210,34 +220,53 @@ func main() {
     v.preview = tview.NewTextView()
     v.preview.SetBorder(true)
 
-    v.list.SetChangedFunc( v.listChanged )
+    v.list.SetChangedFunc(v.listChanged)
     v.input.SetChangedFunc(v.filterList)
 
     v.updateList()
 
+    var callbacks = map[tcell.Key]func(){
+        tcell.KeyDown:   v.nextLine,
+        tcell.KeyUp:     v.prevLine,
+        tcell.KeyHome:   v.scrollToBeginning,
+        tcell.KeyEnd:    v.scrollToEnd,
+        tcell.KeyCtrlV:  v.scrollDown,
+        tcell.KeyCtrlB:  v.scrollUp,
+        tcell.KeyEnter:  v.editNote,
+        tcell.KeyEscape: v.clearInput,
+    }
+
     v.input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
-        if event.Key() == tcell.KeyDown {
-            v.list.SetCurrentItem(v.list.GetCurrentItem() + 1)
+        callback, ok := callbacks[event.Key()]
+        if ok {
+            callback()
             return nil
-        } else if event.Key() == tcell.KeyUp {
-            current := v.list.GetCurrentItem()
-            if current == 0 {
-                return nil
-            }
-            v.list.SetCurrentItem(current - 1)
-            return nil
-        } else if event.Key() == tcell.KeyHome {
-            return v.preview.ScrollToBeginning()
-        } else if event.Key() == tcell.KeyEnd {
-            return v.preview.ScrollToEnd()
-        } else if event.Key() == tcell.KeyCtrlV {
-            return v.scrollDown()
-        } else if event.Key() == tcell.KeyCtrlB {
-            return v.scrollUp()
-        } else if event.Key() == tcell.KeyEnter {
-            return v.editNote()
         }
         return event
     })
     v.run()
+}
+
+func (v *velocity) clearInput() {
+    v.input.SetText("")
+}
+
+func (v *velocity) scrollToEnd() {
+    v.preview.ScrollToBeginning()
+}
+
+func (v *velocity) scrollToBeginning() {
+    v.preview.ScrollToBeginning()
+}
+
+func (v *velocity) prevLine() {
+    current := v.list.GetCurrentItem()
+    if current == 0 {
+        return
+    }
+    v.list.SetCurrentItem(current - 1)
+}
+
+func (v *velocity) nextLine() {
+    v.list.SetCurrentItem(v.list.GetCurrentItem() + 1)
 }
