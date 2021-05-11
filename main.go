@@ -161,11 +161,19 @@ func (v *velocity) listChanged(index int, _ string, _ string, _ rune) {
     return
 }
 
+var last_search string
+
 func (v *velocity) filterList(text string) {
     searchTerms := strings.Fields(text)
-    v.selectedFiles = []*file{}
+    newSelection := []*file{}
+    corpus := []*file{}
+    if strings.HasPrefix(text, last_search) {
+        corpus = v.selectedFiles
+    } else {
+        corpus = v.allFiles
+    }
 FILES:
-    for _, file := range v.allFiles {
+    for _, file := range corpus {
         // search for search terms in content AND path
         content := strings.ToLower(file.content + " " + file.path)
         for _, term := range searchTerms {
@@ -173,9 +181,11 @@ FILES:
                 continue FILES
             }
         }
-        v.selectedFiles = append(v.selectedFiles, file)
+        newSelection = append(newSelection, file)
     }
+    v.selectedFiles = newSelection
     v.updateList()
+    last_search = text
 }
 
 func getAllFiles(root string) []*file {
