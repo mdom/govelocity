@@ -120,6 +120,8 @@ type velocity struct {
     list          *tview.List
     input         *tview.InputField
     app           *tview.Application
+    index         *index
+    filenames     map[string]*file
 }
 
 func (v *velocity) scrollUp() {
@@ -161,34 +163,21 @@ func (v *velocity) listChanged(index int, _ string, _ string, _ rune) {
     return
 }
 
-var last_search string
-
 func (v *velocity) filterList(text string) {
-    searchTerms := strings.Fields(text)
-    newSelection := []*file{}
-    corpus := []*file{}
-    if strings.HasPrefix(text, last_search) {
-        corpus = v.selectedFiles
-    } else {
-        corpus = v.allFiles
+    defer v.updateList()
+    if len(text) < 3 {
+        v.selectedFiles = v.allFiles
+        return
     }
-FILES:
-    for _, file := range corpus {
-        // search for search terms in content AND path
-        content := strings.ToLower(file.content + " " + file.path)
-        for _, term := range searchTerms {
-            if !strings.Contains(content, strings.ToLower(term)) {
-                continue FILES
-            }
-        }
-        newSelection = append(newSelection, file)
+    var newSelection []*file
+    ret := v.index.search(text)
+    for _, i := range ret {
+        newSelection = append(newSelection, v.filenames[i])
     }
     v.selectedFiles = newSelection
-    v.updateList()
-    last_search = text
 }
 
-func getAllFiles(root string) []*file {
+func (v *velocity) getAllFiles(root string) {
     var files = []*file{}
     err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
         if info.IsDir() {
@@ -201,22 +190,33 @@ func getAllFiles(root string) []*file {
         if err != nil {
             panic(err)
         }
-        files = append(files, &file{
+        file := &file{
             path:    path,
             content: string(content),
             modTime: info.ModTime(),
-        })
+        }
+        files = append(files, file)
+        v.filenames[path] = file
         return nil
     })
     if err != nil {
         panic(err)
     }
-    return files
+    v.allFiles = files
+    v.selectedFiles = files
+}
+
+
+func newVelocity () *velocity {
+    return &velocity{
+        filenames: make(map[string]*file),
+    }
 }
 
 func main() {
 
-    v := velocity{}
+
+    v := newVelocity()
 
     dir := os.ExpandEnv("${HOME}/notes")
 
@@ -232,8 +232,12 @@ func main() {
         panic(err)
     }
 
-    v.allFiles = getAllFiles(".")
-    v.selectedFiles = v.allFiles
+    v.getAllFiles(".")
+
+    v.index = newIndex()
+    for _, file := range v.allFiles {
+        v.index.add(file.content + " " + file.path, file.path)
+    }
 
     v.input = tview.NewInputField()
     v.input.SetBorder(true)
@@ -242,6 +246,7 @@ func main() {
     v.list.SetBorder(true)
     v.list.ShowSecondaryText(false)
     v.list.SetHighlightFullLine(true)
+    // v.list.SetSelectedReverseColor(true)
 
     v.preview = tview.NewTextView()
     v.preview.SetBorder(true)
