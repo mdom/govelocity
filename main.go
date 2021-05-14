@@ -120,7 +120,6 @@ type velocity struct {
     list          *tview.List
     input         *tview.InputField
     app           *tview.Application
-    index         *index
     filenames     map[string]*file
 }
 
