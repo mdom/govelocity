@@ -165,14 +165,17 @@ func (v *velocity) listChanged(index int, _ string, _ string, _ rune) {
 
 func (v *velocity) filterList(text string) {
     defer v.updateList()
-    if len(text) < 3 {
-        v.selectedFiles = v.allFiles
+    if text == "" {
+        v.selectAllFiles()
         return
     }
+    text = strings.ToLower(text)
     var newSelection []*file
-    ret := v.index.search(text)
-    for _, i := range ret {
-        newSelection = append(newSelection, v.filenames[i])
+    for _, i := range v.allFiles {
+        if strings.Contains(strings.ToLower(i.path), text) ||
+            strings.Contains(strings.ToLower(i.content), text) {
+            newSelection = append(newSelection, i)
+        }
     }
     v.selectedFiles = newSelection
 }
@@ -203,18 +206,25 @@ func (v *velocity) getAllFiles(root string) {
         panic(err)
     }
     v.allFiles = files
-    v.selectedFiles = files
+
+    v.selectAllFiles()
 }
 
+func (v *velocity) selectAllFiles() {
+    if len(v.selectedFiles) == len(v.allFiles) {
+        return
+    }
+    v.selectedFiles = make([]*file, len(v.allFiles))
+    copy(v.selectedFiles, v.allFiles)
+}
 
-func newVelocity () *velocity {
+func newVelocity() *velocity {
     return &velocity{
         filenames: make(map[string]*file),
     }
 }
 
 func main() {
-
 
     v := newVelocity()
 
@@ -233,11 +243,6 @@ func main() {
     }
 
     v.getAllFiles(".")
-
-    v.index = newIndex()
-    for _, file := range v.allFiles {
-        v.index.add(file.content + " " + file.path, file.path)
-    }
 
     v.input = tview.NewInputField()
     v.input.SetBorder(true)
