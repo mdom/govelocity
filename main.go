@@ -140,7 +140,7 @@ func (v *velocity) run() {
     v.app = app
 
     box := tview.NewFlex().SetDirection(tview.FlexRow)
-    box.AddItem(v.input, 3, 1, true).
+    box.AddItem(v.input, 1, 1, true).
         AddItem(v.list, 0, 1, false).
         AddItem(v.preview, 0, 2, false)
 
@@ -244,10 +244,9 @@ func main() {
     v.getAllFiles(".")
 
     v.input = tview.NewInputField()
-    v.input.SetBorder(true)
+    v.input.SetLabel("> ")
 
     v.list = tview.NewList()
-    v.list.SetBorder(true)
     v.list.ShowSecondaryText(false)
     v.list.SetHighlightFullLine(true)
     // v.list.SetSelectedReverseColor(true)
