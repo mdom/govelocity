@@ -184,6 +184,9 @@ func (v *velocity) filterList(text string) {
             newSelection = append(newSelection, i)
         }
     }
+    if len(newSelection) == 0 {
+        v.preview.SetText("")
+    }
     v.selectedFiles = newSelection
 }
 
