@@ -147,6 +147,14 @@ func (v *velocity) run() {
     if err := app.SetRoot(box, true).Run(); err != nil {
         panic(err)
     }
+
+    if _, err := os.Stat(".exithook"); err == nil {
+        cmd := exec.Command("./.exithook")
+        cmd.Stdout = os.Stdout
+        cmd.Stdin = os.Stdin
+        cmd.Stderr = os.Stderr
+        cmd.Run()
+    }
 }
 
 func (v *velocity) listChanged(index int, _ string, _ string, _ rune) {
