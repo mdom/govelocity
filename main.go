@@ -235,7 +235,13 @@ func main() {
 
     v := newVelocity()
 
-    dir := os.ExpandEnv("${HOME}/notes")
+    var dir string
+
+    if len(os.Args) > 1 {
+        dir = os.Args[1]
+    } else {
+        dir = os.ExpandEnv("${HOME}/notes")
+    }
 
     if _, err := os.Stat(dir); os.IsNotExist(err) {
         err = os.Mkdir(dir, 0770)
