@@ -1,15 +1,18 @@
 package main
 
 import (
-    "github.com/gdamore/tcell/v2"
-    "github.com/rivo/tview"
     "io/ioutil"
     "os"
     "os/exec"
+    "path"
     "path/filepath"
     "sort"
     "strings"
     "time"
+
+    "github.com/gdamore/tcell/v2"
+    "github.com/rivo/tview"
+    "gopkg.in/ini.v1"
 )
 
 var theme = tview.Theme{
@@ -121,6 +124,8 @@ type velocity struct {
     input         *tview.InputField
     app           *tview.Application
     filenames     map[string]*file
+    dir           string
+    exit_hook     string
 }
 
 func (v *velocity) scrollUp() {
@@ -234,26 +239,45 @@ func newVelocity() *velocity {
     }
 }
 
+func (v *velocity) readConfig() {
+    config_dir := os.Getenv("XDG_CONFIG_HOME")
+    if config_dir == "" {
+        config_dir = os.ExpandEnv("${HOME}/.config")
+    }
+    config_dir = path.Join(config_dir, "govelocity")
+    config_file := path.Join(config_dir, "config.ini")
+
+    cfg, err := ini.Load(config_file)
+    if os.IsNotExist(err) {
+        return
+    } else if err != nil {
+        panic(err)
+    }
+    v.dir = os.ExpandEnv(cfg.Section("").Key("directory").String())
+}
+
 func main() {
 
     v := newVelocity()
 
-    var dir string
+    v.readConfig()
 
     if len(os.Args) > 1 {
-        dir = os.Args[1]
-    } else {
-        dir = os.ExpandEnv("${HOME}/notes")
+        v.dir = os.Args[1]
     }
 
-    if _, err := os.Stat(dir); os.IsNotExist(err) {
-        err = os.Mkdir(dir, 0770)
+    if v.dir == "" {
+        v.dir = os.ExpandEnv("${HOME}/notes")
+    }
+
+    if _, err := os.Stat(v.dir); os.IsNotExist(err) {
+        err = os.Mkdir(v.dir, 0770)
         if err != nil {
             panic(err)
         }
     }
 
-    err := os.Chdir(dir)
+    err := os.Chdir(v.dir)
     if err != nil {
         panic(err)
     }

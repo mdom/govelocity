@@ -14,6 +14,8 @@ github.com/mattn/go-runewidth v0.0.12 h1:Y41i/hVW3Pgwr8gV+J23B9YEY0zxjptBuCWEaxm
 github.com/mattn/go-runewidth v0.0.12/go.mod h1:RAqKPSqVFrSLVXbA8x7dzmKdmGzieGRCM46jaSJTDAk=
 github.com/rivo/tview v0.0.0-20210426115756-7df0389cccc9 h1:AYcLkG22IBJuDB6/ZpmRX5aglr7hT6RhCrvq342w6yQ=
 github.com/rivo/tview v0.0.0-20210426115756-7df0389cccc9/go.mod h1:N/me/Wl2SRS18qi3TyvXbciIPyNwljilmybxouFxEuk=
+github.com/rivo/tview v0.0.0-20210514202809-22dbf8415b04 h1:9e47a4RJ9rCkPn6D2eb5OP3M2nMqcoRjL5JFTeKUVYc=
+github.com/rivo/tview v0.0.0-20210514202809-22dbf8415b04/go.mod h1:Uajo+DndkMDGPzEw/Z92AgJrpx6Rvy2HRo/xP1YbXAI=
 github.com/rivo/uniseg v0.1.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
 github.com/rivo/uniseg v0.2.0 h1:S1pD9weZBuJdFmowNwbpi7BJ8TNftyUImj/0WQi72jY=
 github.com/rivo/uniseg v0.2.0/go.mod h1:J6wj4VEh+S6ZtnVlnTBMWIodfgj8LQOQFoIToxlJtxc=
@@ -33,3 +35,5 @@ golang.org/x/text v0.3.5/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
 golang.org/x/text v0.3.6 h1:aRYxNxv6iGQlyVaZmk6ZgYEDa+Jg18DxebPSrd6bg1M=
 golang.org/x/text v0.3.6/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
 golang.org/x/tools v0.0.0-20180917221912-90fa682c2a6e/go.mod h1:n7NCudcB/nEzxVGmLbDWY5pfWTLqBcC2KZ6jyYvM4mQ=
+gopkg.in/ini.v1 v1.62.0 h1:duBzk771uxoUuOlyRLkHsygud9+5lrlGjdFBb4mSKDU=
+gopkg.in/ini.v1 v1.62.0/go.mod h1:pNLf8WUiyNEtQjuu5G5vTm06TEv9tsIgeAvK8hOrP4k=
