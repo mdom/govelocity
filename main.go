@@ -285,6 +285,7 @@ func main() {
         tcell.KeyCtrlB:  v.scrollUp,
         tcell.KeyEnter:  v.editNote,
         tcell.KeyEscape: v.clearInput,
+        tcell.KeyTab:    v.completeInput,
     }
 
     v.input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
@@ -320,4 +321,49 @@ func (v *velocity) prevLine() {
 
 func (v *velocity) nextLine() {
     v.list.SetCurrentItem(v.list.GetCurrentItem() + 1)
+}
+
+func (v *velocity) completeInput() {
+    paths := []string{}
+    input := v.input.GetText()
+    for _, file := range v.selectedFiles {
+        if strings.HasPrefix(file.path, input) {
+            paths = append(paths, file.path)
+        }
+    }
+
+    prefix := longestCommonPrefix(paths)
+
+    if prefix == "" {
+        return
+    }
+
+    v.input.SetText(prefix)
+}
+
+func longestCommonPrefix(strs []string) string {
+    if len(strs) == 0 {
+        return ""
+    }
+
+    minStr := strs[0]
+
+    for _, str := range strs[1:] {
+        if len(str) < len(minStr) {
+            minStr = str
+        }
+    }
+
+    end := len(minStr)
+
+    for _, str := range strs {
+        var j int
+        for j = 0; j < end; j++ {
+            if minStr[j] != str[j] {
+                end = j
+                break
+            }
+        }
+    }
+    return minStr[0:end]
 }
