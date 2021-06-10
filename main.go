@@ -313,6 +313,10 @@ func main() {
     }
 
     v.input.SetInputCapture(func(event *tcell.EventKey) *tcell.EventKey {
+        if event.Key() == tcell.KeyCtrlX {
+            v.app.Stop()
+            return event
+        }
         callback, ok := callbacks[event.Key()]
         if ok {
             callback()
